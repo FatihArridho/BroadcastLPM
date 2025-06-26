@@ -199,7 +199,7 @@ if (msg.message.startsWith("/bc")) {
         await new Promise((res) => setTimeout(res, 30000)); // delay normal 30 detik
       } catch (err) {
         if (err.message.includes("A wait of")) {
-          const delay = 250; // delay rate limit
+          const delay = 240; // delay rate limit
           console.warn(`⏳ Rate limit ${group}, tunggu ${delay}s`);
 
           // Notifikasi ke admin
@@ -228,16 +228,32 @@ ${text}`
 
   await client.sendMessage(msg.chatId, { message: "✅ Broadcast selesai dikirim ke semua grup." });
 }
-    // === /listgrup ===
-    if (msg.message === "/listgrup") {
-      if (!adminIds.includes(senderId)) return;
+// === /listgrup ===
+if (msg.message === "/listgrup") {
+  if (!adminIds.includes(senderId)) return;
 
-      const list = targetGroups.map((g, i) => `${i + 1}. ${g}`).join("\n");
-      await client.sendMessage(msg.chatId, {
-        message: `📋 *Daftar Grup Target Broadcast:*\n\n${list}`,
-        parseMode: "markdown",
-      });
+  let listMsg = "📋 *Daftar Grup Target Broadcast:*\n\n";
+  let counter = 1;
+
+  for (const group of targetGroups) {
+    try {
+      const entity = await client.getEntity(group);
+      // Jika bisa getEntity, asumsikan sudah join
+      listMsg += `${counter++}. ${group} - ✅ Joined\n`;
+    } catch (err) {
+      if (err.message.includes("CHANNEL_PRIVATE") || err.message.includes("CHAT_ADMIN_REQUIRED")) {
+        listMsg += `${counter++}. ${group} - 🔒 Private / Restricted\n`;
+      } else {
+        listMsg += `${counter++}. ${group} - ❌ Not Joined (${err.message})\n`;
+      }
     }
+  }
+
+  await client.sendMessage(msg.chatId, {
+    message: listMsg,
+    parseMode: "markdown",
+  });
+}
 
   }, new NewMessage({}));
 
