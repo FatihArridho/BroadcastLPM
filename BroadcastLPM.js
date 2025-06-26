@@ -189,42 +189,42 @@ const rl = readline.createInterface({
       }
 
       for (const group of targetGroups) {
-        try {
-          await client.sendMessage(group, { message: text });
-          console.log(`📤 Broadcast terkirim ke ${group}`);
-          await new Promise((res) => setTimeout(res, 10000)); // delay 10 detik
-        } catch (err) {
-          if (err.message.includes("A wait of")) {
-            const delay = parseInt(err.message.match(/\d+/)?.[0] || "30");
-            console.warn(`⏳ Rate limit ${group}, tunggu ${delay}s`);
+  try {
+    await client.sendMessage(group, { message: text });
+    console.log(`📤 Broadcast terkirim ke ${group}`);
+    await new Promise((res) => setTimeout(res, 10000)); // delay normal 10 detik
+  } catch (err) {
+    if (err.message.includes("A wait of")) {
+      const delay = 30; // selalu pakai 30 detik untuk flood wait
+      console.warn(`⏳ Rate limit ${group}, tunggu ${delay}s`);
 
-            // Kirim notifikasi ke admin/owner
-            for (const adminId of adminIds) {
-              await client.sendMessage(adminId, {
-                message:
+      // Kirim notifikasi ke admin/owner
+      for (const adminId of adminIds) {
+        await client.sendMessage(adminId, {
+          message:
 `⚠️ *Rate Limit Detected!*
 Grup: ${group}
 Delay: ${delay} detik
 Pesan:
 ${text}`
-              });
-            }
-
-            // Tunggu dan retry
-            await new Promise((res) => setTimeout(res, (delay + 1) * 1000));
-            try {
-              await client.sendMessage(group, { message: text });
-              console.log(`✅ Retry berhasil ke ${group}`);
-            } catch (retryErr) {
-              console.warn(`❌ Retry gagal ke ${group}: ${retryErr.message}`);
-            }
-          } else if (err.message.includes("CHAT_WRITE_FORBIDDEN")) {
-            console.warn(`🚫 Tidak bisa kirim ke ${group}: write forbidden.`);
-          } else {
-            console.warn(`❌ Gagal kirim ke ${group}: ${err.message}`);
-          }
-        }
+        });
       }
+
+      // Tunggu dan retry
+      await new Promise((res) => setTimeout(res, delay * 1000));
+      try {
+        await client.sendMessage(group, { message: text });
+        console.log(`✅ Retry berhasil ke ${group}`);
+      } catch (retryErr) {
+        console.warn(`❌ Retry gagal ke ${group}: ${retryErr.message}`);
+      }
+    } else if (err.message.includes("CHAT_WRITE_FORBIDDEN")) {
+      console.warn(`🚫 Tidak bisa kirim ke ${group}: write forbidden.`);
+    } else {
+      console.warn(`❌ Gagal kirim ke ${group}: ${err.message}`);
+    }
+  }
+}
 
       await client.sendMessage(msg.chatId, { message: "✅ Broadcast selesai dikirim ke semua grup." });
     }
