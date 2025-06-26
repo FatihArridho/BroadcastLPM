@@ -188,6 +188,16 @@ if (msg.message.startsWith("/bc")) {
     return;
   }
 
+  // === /bc <pesan> ===
+  if (msg.message.startsWith("/bc")) {
+  if (!adminIds.includes(senderId)) return;
+
+  const text = msg.message.slice(3).trim();
+  if (!text) {
+    await client.sendMessage(msg.chatId, { message: "⚠️ Format: /bc <pesan>" });
+    return;
+  }
+
   for (const group of targetGroups) {
     let sent = false;
 
@@ -228,10 +238,6 @@ ${text}`
 
   await client.sendMessage(msg.chatId, { message: "✅ Broadcast selesai dikirim ke semua grup." });
 }
-
-      await client.sendMessage(msg.chatId, { message: "✅ Broadcast selesai dikirim ke semua grup." });
-    }
-
     // === /listgrup ===
     if (msg.message === "/listgrup") {
       if (!adminIds.includes(senderId)) return;
