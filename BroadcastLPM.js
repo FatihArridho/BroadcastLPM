@@ -5,15 +5,11 @@ import { NewMessage } from "telegram/events/index.js";
 import fs from "fs";
 import readline from "readline";
 
-// Ganti ini sesuai API key kamu
 const apiId = 24807405;
 const apiHash = "2702110fc79a78d79ab4f58f63db014f";
 const sessionFile = "sesi.txt";
-
-// Admin yang boleh pakai /bc
 const adminIds = [7528868033];
 
-// Target grup
 const targetGroups = [
   "@kenzijul", "@LPMMASHAA", "@lpm_sfs_isi_board", "@Bebas_Share_IDR6",
   "@BPEOLPM", "@LAPAKCPROMT", "@cybersexlpm", "@LPMKAIROV", "@LPMZUHAZANA",
@@ -23,7 +19,6 @@ const targetGroups = [
   "@lpmbebasot", "@LPMNOBITA", "@LPMNYENYES", "@LPMNSFWPM2", "@LPMCATTIE"
 ];
 
-// Load session
 const stringSession = new StringSession(
   fs.existsSync(sessionFile) ? fs.readFileSync(sessionFile, "utf8") : ""
 );
@@ -61,19 +56,14 @@ const rl = readline.createInterface({
   for (const group of targetGroups) {
     try {
       const entity = await client.getEntity(group);
-      const isMember = entity?.megagroup || entity?.broadcast;
-
-      if (!isMember) {
-        console.log(`⛔ Bukan grup publik / channel: ${group}`);
-        continue;
-      }
-
       try {
         await client.invoke(new Api.channels.JoinChannel({ channel: entity }));
         console.log(`✅ Joined ${group}`);
       } catch (e) {
         if (e.message.includes("USER_ALREADY_PARTICIPANT")) {
           console.log(`✅ Already joined ${group}`);
+        } else if (e.message.includes("A wait of")) {
+          console.warn(`⏳ Rate limit join ${group}: ${e.message}`);
         } else {
           console.warn(`⚠️ Gagal join ${group}: ${e.message}`);
         }
@@ -83,32 +73,58 @@ const rl = readline.createInterface({
     }
   }
 
-  // Handle /bc command
   client.addEventHandler(async (event) => {
     const msg = event.message;
-    if (!msg || !msg.text || !msg.message.startsWith("/bc")) return;
+    if (!msg || !msg.text) return;
 
     const sender = await msg.getSender();
-    if (!adminIds.includes(Number(sender?.id))) return;
+    const senderId = Number(sender?.id);
 
-    const text = msg.message.slice(3).trim();
-    if (!text) {
-      await client.sendMessage(msg.chatId, { message: "⚠️ Format: /bc <pesan>" });
-      return;
-    }
+    if (msg.message.startsWith("/bc")) {
+      if (!adminIds.includes(senderId)) return;
 
-    for (const group of targetGroups) {
-      try {
-        await client.sendMessage(group, { message: text });
-        console.log(`📤 Broadcast terkirim ke ${group}`);
-      } catch (err) {
-        console.warn(`❌ Gagal kirim ke ${group}: ${err.message}`);
+      const text = msg.message.slice(3).trim();
+      if (!text) {
+        await client.sendMessage(msg.chatId, { message: "⚠️ Format: /bc <pesan>" });
+        return;
       }
-      await new Promise((res) => setTimeout(res, 2000)); // Delay 2 detik
+
+      for (const group of targetGroups) {
+        try {
+          await client.sendMessage(group, { message: text });
+          console.log(`📤 Broadcast terkirim ke ${group}`);
+          await new Promise((res) => setTimeout(res, 2000));
+        } catch (err) {
+          if (err.message.includes("A wait of")) {
+            const delay = parseInt(err.message.match(/\d+/)?.[0] || "30");
+            console.warn(`⏳ Rate limit ${group}, tunggu ${delay}s`);
+            await new Promise((res) => setTimeout(res, (delay + 1) * 1000));
+            try {
+              await client.sendMessage(group, { message: text });
+              console.log(`✅ Retry berhasil ke ${group}`);
+            } catch (retryErr) {
+              console.warn(`❌ Gagal retry ${group}: ${retryErr.message}`);
+            }
+          } else if (err.message.includes("CHAT_WRITE_FORBIDDEN")) {
+            console.warn(`🚫 Tidak bisa kirim ke ${group}: write forbidden.`);
+          } else {
+            console.warn(`❌ Gagal kirim ke ${group}: ${err.message}`);
+          }
+        }
+      }
+      await client.sendMessage(msg.chatId, { message: "✅ Broadcast selesai dikirim ke semua grup." });
     }
 
-    await client.sendMessage(msg.chatId, { message: "✅ Broadcast selesai dikirim ke semua grup." });
+    if (msg.message === "/listgrup") {
+      if (!adminIds.includes(senderId)) return;
+
+      const list = targetGroups.map((g, i) => `${i + 1}. ${g}`).join("\n");
+      await client.sendMessage(msg.chatId, {
+        message: `📋 *Daftar Grup Target Broadcast:*\n\n${list}`,
+        parseMode: "markdown",
+      });
+    }
   }, new NewMessage({}));
 
-  console.log("📡 Bot siap menerima /bc dari admin.");
+  console.log("📡 Bot siap menerima /bc dan /listgrup dari admin.");
 })();
