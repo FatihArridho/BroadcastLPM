@@ -1,0 +1,15 @@
+{
+  "name": "BroadcastLPM",
+  "version": "1.0.0",
+  "description": "Bot Telegram untuk broadcast ke grup via gramjs",
+  "main": "BroadcastLPM.js",
+  "type": "module",
+  "scripts": {
+    "start": "node BroadcastLPM.js"
+  },
+  "dependencies": {
+    "telegram": "^2.26.22"
+  },
+  "author": "FatihArridho",
+  "license": "MIT"
+}
