@@ -178,52 +178,55 @@ const rl = readline.createInterface({
     const sender = await msg.getSender();
     const senderId = Number(sender?.id);
 
-    // === /bc <pesan> ===
-    if (msg.message.startsWith("/bc")) {
-      if (!adminIds.includes(senderId)) return;
+// === /bc <pesan> ===
+if (msg.message.startsWith("/bc")) {
+  if (!adminIds.includes(senderId)) return;
 
-      const text = msg.message.slice(3).trim();
-      if (!text) {
-        await client.sendMessage(msg.chatId, { message: "⚠️ Format: /bc <pesan>" });
-        return;
-      }
+  const text = msg.message.slice(3).trim();
+  if (!text) {
+    await client.sendMessage(msg.chatId, { message: "⚠️ Format: /bc <pesan>" });
+    return;
+  }
 
-      for (const group of targetGroups) {
-  try {
-    await client.sendMessage(group, { message: text });
-    console.log(`📤 Broadcast terkirim ke ${group}`);
-    await new Promise((res) => setTimeout(res, 10000)); // delay normal 10 detik
-  } catch (err) {
-    if (err.message.includes("A wait of")) {
-      const delay = 30; // selalu pakai 30 detik untuk flood wait
-      console.warn(`⏳ Rate limit ${group}, tunggu ${delay}s`);
+  for (const group of targetGroups) {
+    let sent = false;
 
-      // Kirim notifikasi ke admin/owner
-      for (const adminId of adminIds) {
-        await client.sendMessage(adminId, {
-          message:
+    while (!sent) {
+      try {
+        await client.sendMessage(group, { message: text });
+        console.log(`📤 Broadcast terkirim ke ${group}`);
+        sent = true;
+        await new Promise((res) => setTimeout(res, 30000)); // delay normal 30 detik
+      } catch (err) {
+        if (err.message.includes("A wait of")) {
+          const delay = 250; // delay rate limit
+          console.warn(`⏳ Rate limit ${group}, tunggu ${delay}s`);
+
+          // Notifikasi ke admin
+          for (const adminId of adminIds) {
+            await client.sendMessage(adminId, {
+              message:
 `⚠️ *Rate Limit Detected!*
 Grup: ${group}
 Delay: ${delay} detik
 Pesan:
 ${text}`
-        });
-      }
+            });
+          }
 
-      // Tunggu dan retry
-      await new Promise((res) => setTimeout(res, delay * 1000));
-      try {
-        await client.sendMessage(group, { message: text });
-        console.log(`✅ Retry berhasil ke ${group}`);
-      } catch (retryErr) {
-        console.warn(`❌ Retry gagal ke ${group}: ${retryErr.message}`);
+          await new Promise((res) => setTimeout(res, delay * 1000)); // tunggu sebelum retry
+        } else if (err.message.includes("CHAT_WRITE_FORBIDDEN")) {
+          console.warn(`🚫 Tidak bisa kirim ke ${group}: write forbidden.`);
+          sent = true; // skip karena memang tidak bisa kirim
+        } else {
+          console.warn(`❌ Gagal kirim ke ${group}: ${err.message}`);
+          // akan dicoba ulang
+        }
       }
-    } else if (err.message.includes("CHAT_WRITE_FORBIDDEN")) {
-      console.warn(`🚫 Tidak bisa kirim ke ${group}: write forbidden.`);
-    } else {
-      console.warn(`❌ Gagal kirim ke ${group}: ${err.message}`);
     }
   }
+
+  await client.sendMessage(msg.chatId, { message: "✅ Broadcast selesai dikirim ke semua grup." });
 }
 
       await client.sendMessage(msg.chatId, { message: "✅ Broadcast selesai dikirim ke semua grup." });
