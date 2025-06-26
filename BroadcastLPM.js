@@ -238,13 +238,25 @@ if (msg.message === "/listgrup") {
   for (const group of targetGroups) {
     try {
       const entity = await client.getEntity(group);
-      // Jika bisa getEntity, asumsikan sudah join
-      listMsg += `${counter++}. ${group} - ✅ Joined\n`;
-    } catch (err) {
-      if (err.message.includes("CHANNEL_PRIVATE") || err.message.includes("CHAT_ADMIN_REQUIRED")) {
-        listMsg += `${counter++}. ${group} - 🔒 Private / Restricted\n`;
+      const participant = await client.invoke(
+        new Api.channels.GetParticipant({
+          channel: entity,
+          participant: "me",
+        })
+      );
+
+      if (participant && participant.participant) {
+        listMsg += `${counter++}. ${group} - ✅ Joined\n`;
       } else {
-        listMsg += `${counter++}. ${group} - ❌ Not Joined (${err.message})\n`;
+        listMsg += `${counter++}. ${group} - ❌ Not Joined\n`;
+      }
+    } catch (err) {
+      if (err.message.includes("USER_NOT_PARTICIPANT")) {
+        listMsg += `${counter++}. ${group} - ❌ Not Joined\n`;
+      } else if (err.message.includes("CHANNEL_PRIVATE")) {
+        listMsg += `${counter++}. ${group} - 🔒 Private Group\n`;
+      } else {
+        listMsg += `${counter++}. ${group} - ⚠️ Error: ${err.message}\n`;
       }
     }
   }
