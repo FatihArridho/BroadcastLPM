@@ -8,7 +8,7 @@ import readline from "readline";
 const apiId = 24807405;
 const apiHash = "2702110fc79a78d79ab4f58f63db014f";
 const sessionFile = "sesi.txt";
-const adminIds = [7528868033];
+const adminIds = [7528868033]; // ID owner (akan dikirimi notifikasi kalau rate limit)
 
 const targetGroups = [
   "@kenzijul", "@LPMMASHAA", "@lpm_sfs_isi_board", "@Bebas_Share_IDR6",
@@ -52,7 +52,7 @@ const rl = readline.createInterface({
   const me = await client.getMe();
   console.log(`👤 Logged in as: ${me.username || me.firstName}`);
 
-  // Cek dan join ke semua grup jika belum
+  // Join ke semua grup
   for (const group of targetGroups) {
     try {
       const entity = await client.getEntity(group);
@@ -80,6 +80,7 @@ const rl = readline.createInterface({
     const sender = await msg.getSender();
     const senderId = Number(sender?.id);
 
+    // === /bc <pesan> ===
     if (msg.message.startsWith("/bc")) {
       if (!adminIds.includes(senderId)) return;
 
@@ -93,17 +94,31 @@ const rl = readline.createInterface({
         try {
           await client.sendMessage(group, { message: text });
           console.log(`📤 Broadcast terkirim ke ${group}`);
-          await new Promise((res) => setTimeout(res, 2000));
+          await new Promise((res) => setTimeout(res, 10000)); // delay 10 detik
         } catch (err) {
           if (err.message.includes("A wait of")) {
             const delay = parseInt(err.message.match(/\d+/)?.[0] || "30");
             console.warn(`⏳ Rate limit ${group}, tunggu ${delay}s`);
+
+            // Kirim notifikasi ke admin/owner
+            for (const adminId of adminIds) {
+              await client.sendMessage(adminId, {
+                message:
+`⚠️ *Rate Limit Detected!*
+Grup: ${group}
+Delay: ${delay} detik
+Pesan:
+${text}`
+              });
+            }
+
+            // Tunggu dan retry
             await new Promise((res) => setTimeout(res, (delay + 1) * 1000));
             try {
               await client.sendMessage(group, { message: text });
               console.log(`✅ Retry berhasil ke ${group}`);
             } catch (retryErr) {
-              console.warn(`❌ Gagal retry ${group}: ${retryErr.message}`);
+              console.warn(`❌ Retry gagal ke ${group}: ${retryErr.message}`);
             }
           } else if (err.message.includes("CHAT_WRITE_FORBIDDEN")) {
             console.warn(`🚫 Tidak bisa kirim ke ${group}: write forbidden.`);
@@ -112,9 +127,11 @@ const rl = readline.createInterface({
           }
         }
       }
+
       await client.sendMessage(msg.chatId, { message: "✅ Broadcast selesai dikirim ke semua grup." });
     }
 
+    // === /listgrup ===
     if (msg.message === "/listgrup") {
       if (!adminIds.includes(senderId)) return;
 
@@ -124,6 +141,7 @@ const rl = readline.createInterface({
         parseMode: "markdown",
       });
     }
+
   }, new NewMessage({}));
 
   console.log("📡 Bot siap menerima /bc dan /listgrup dari admin.");
