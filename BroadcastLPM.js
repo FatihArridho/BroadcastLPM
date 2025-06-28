@@ -111,7 +111,12 @@ const targetGroups = [
   "@lpmyenniehelpeu",
   "@lpmzhen",
   "@lppmbebasoot",
-  "@sqpromote_roleplayer"
+  "@sqpromote_roleplayer",
+  "@LPMVANT",
+  "@LpmAhyeoon",
+  "@lpmwoonhak",
+  "@LPMGAMBOL",
+  "@LPMOMA"
 ];
 
 const stringSession = new StringSession(
@@ -147,26 +152,49 @@ const rl = readline.createInterface({
   const me = await client.getMe();
   console.log(`👤 Logged in as: ${me.username || me.firstName}`);
 
-  // Join ke semua grup
-  for (const group of targetGroups) {
+// Join ke semua grup dengan anti-flood & delay acak
+for (const group of targetGroups) {
+  let joined = false;
+  while (!joined) {
     try {
       const entity = await client.getEntity(group);
-      try {
-        await client.invoke(new Api.channels.JoinChannel({ channel: entity }));
-        console.log(`✅ Joined ${group}`);
-      } catch (e) {
-        if (e.message.includes("USER_ALREADY_PARTICIPANT")) {
-          console.log(`✅ Already joined ${group}`);
-        } else if (e.message.includes("A wait of")) {
-          console.warn(`⏳ Rate limit join ${group}: ${e.message}`);
-        } else {
-          console.warn(`⚠️ Gagal join ${group}: ${e.message}`);
+      await client.invoke(new Api.channels.JoinChannel({ channel: entity }));
+      console.log(`✅ Joined ${group}`);
+      joined = true;
+      // Delay random antara 30-60 detik setelah berhasil join
+      const randomDelay = 30 + Math.floor(Math.random() * 30);
+      await new Promise(res => setTimeout(res, randomDelay * 1000));
+    } catch (e) {
+      const errMsg = e.message || e.toString();
+      if (errMsg.includes("USER_ALREADY_PARTICIPANT")) {
+        console.log(`✅ Already joined ${group}`);
+        joined = true;
+      } else if (errMsg.match(/A wait of (\d+) seconds is required/)) {
+        // Tangkap angka detik dari error message
+        const waitSeconds = Number(errMsg.match(/A wait of (\d+) seconds is required/)[1]);
+        console.warn(`⏳ Flood wait! Join ${group} akan coba lagi dalam ${waitSeconds} detik.`);
+        // Notifikasi admin
+        for (const adminId of adminIds) {
+          await client.sendMessage(adminId, {
+            message:
+`⏳ *FloodWait Detected!*
+Saat join: ${group}
+Delay: ${waitSeconds} detik`
+          });
         }
+        // Tunggu sebelum coba ulang join
+        await new Promise(res => setTimeout(res, waitSeconds * 1000));
+      } else if (errMsg.includes("CHANNEL_PRIVATE")) {
+        console.warn(`🔒 ${group} private/group tidak bisa diakses.`);
+        joined = true;
+      } else {
+        console.warn(`❌ Gagal join ${group}: ${errMsg}`);
+        // Coba lanjut join group berikutnya
+        joined = true;
       }
-    } catch (err) {
-      console.warn(`❌ Error checking ${group}: ${err.message}`);
     }
   }
+}
 
   client.addEventHandler(async (event) => {
     const msg = event.message;
